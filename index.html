@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADM — Autour De Moi | Développez votre activité</title>
+<meta name="description" content="ADM est une plateforme qui permet aux prestataires indépendants de gagner en visibilité, de gérer plus facilement leurs réservations et de développer leur clientèle. Rejoignez la liste d'attente.">
+
+<meta property="og:title" content="ADM — Autour De Moi | Développez votre activité">
+<meta property="og:description" content="La plateforme qui permet aux prestataires indépendants de gagner en visibilité et de développer leur clientèle. Rejoignez la liste d'attente.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/img/og-image-source.png">
+<meta name="theme-color" content="#1E2A4A">
+
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header" id="header">
+  <div class="container header-inner">
+    <a href="#top" class="brand">
+      <img src="assets/img/logo-full.png" alt="ADM" class="brand-mark-full" width="52" height="52">
+    </a>
+
+    <nav class="main-nav" id="main-nav" aria-label="Navigation principale">
+      <a href="#comment-ca-marche">Comment ça marche</a>
+      <a href="#pourquoi">Pourquoi ADM</a>
+      <a href="#idee">Votre avis</a>
+    </nav>
+
+    <div class="header-actions">
+      <a href="#inscription" class="btn btn-primary btn-sm" data-focus-target="#su-email">Rejoindre la liste d'attente</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ HERO + INSCRIPTION ============ -->
+  <section class="hero" id="top">
+    <div class="hero-bg" aria-hidden="true">
+      <span class="deco deco-1"></span>
+      <span class="deco deco-2"></span>
+    </div>
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">Autour De Moi</p>
+        <h1>Développez votre activité avec <em>ADM</em>.</h1>
+        <p class="hero-lead">
+          ADM est une plateforme qui permet aux prestataires indépendants de gagner en visibilité,
+          de gérer plus facilement leurs réservations et de développer leur clientèle grâce à
+          une solution simple, moderne et pensée pour eux.
+        </p>
+
+        <form class="signup-inline" id="signupForm" novalidate>
+          <p class="signup-caption" id="inscription">Rejoindre la liste d'attente</p>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="su-name" class="sr-only">Nom ou nom d'entreprise</label>
+              <input type="text" id="su-name" name="name" placeholder="Nom / Entreprise" required autocomplete="name">
+              <span class="field-error" data-error-for="su-name"></span>
+            </div>
+
+            <div class="form-field">
+              <label for="su-phone" class="sr-only">Téléphone</label>
+              <input type="tel" id="su-phone" name="phone" placeholder="Téléphone" required autocomplete="tel" inputmode="tel">
+              <span class="field-error" data-error-for="su-phone"></span>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="su-email" class="sr-only">Adresse e-mail</label>
+              <input type="email" id="su-email" name="email" placeholder="Adresse e-mail" required autocomplete="email">
+              <span class="field-error" data-error-for="su-email"></span>
+            </div>
+
+            <div class="form-field">
+              <label for="su-domaine" class="sr-only">Domaine d'activité</label>
+              <select id="su-domaine" name="domaine" required>
+              <option value="" disabled selected>Domaine d'activité</option>
+              <option value="Coiffure">Coiffure</option>
+              <option value="Traiteur">Traiteur</option>
+              <option value="Barber">Barber</option>
+              <option value="Maquillage">Maquillage</option>
+              <option value="Onglerie">Onglerie</option>
+              <option value="Esthétique">Esthétique</option>
+              <option value="Massage">Massage</option>
+              <option value="Photographie">Photographie</option>
+              <option value="Coaching">Coaching</option>
+              <option value="Autre">Autre</option>
+              </select>
+              <span class="field-error" data-error-for="su-domaine"></span>
+            </div>
+          </div>
+
+          <div class="form-field signup-other-wrap" id="suOtherWrap" hidden>
+            <label for="su-other" class="sr-only">Précisez votre domaine</label>
+            <input type="text" id="su-other" name="domaine_autre" placeholder="Précisez votre domaine">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block">Je rejoins ADM</button>
+          <p class="form-note" data-form-note aria-live="polite"></p>
+        </form>
+        <p class="hero-microtrust">Gratuit · Sans engagement · 2 minutes chrono</p>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="phone-stage">
+          <span class="phone-shadow"></span>
+
+          <span class="float-badge float-badge--secure">
+            <span class="float-badge-icon">🔒</span> Paiement sécurisé
+          </span>
+          <span class="float-badge float-badge--realtime">
+            <span class="float-badge-icon">⚡</span> Résa en temps réel
+          </span>
+          <span class="float-badge float-badge--free">
+            <span class="float-badge-icon">🆓</span> Inscription gratuite
+          </span>
+
+        <div class="phone-mock">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <img src="assets/img/app-screenshot-home.png" alt="Écran d'accueil de l'application ADM" class="phone-screenshot">
+            <span class="mock-live-dot"></span>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMMENT CA FONCTIONNE ============ -->
+  <section class="section" id="comment-ca-marche">
+    <div class="container container-narrow">
+      <div class="section-head">
+        <p class="eyebrow">Notre mission</p>
+        <h2>Une plateforme pensée pour les indépendants</h2>
+      </div>
+
+      <div class="prose">
+        <p>
+          ADM est une plateforme qui connecte les prestataires indépendants et leurs futurs
+          clients grâce à une expérience simple, intuitive et pensée pour développer leur activité.
+        </p>
+        <p>
+          Aujourd'hui, développer sa clientèle passe souvent par les réseaux sociaux. Pourtant,
+          tout le monde n'a ni le temps, ni les compétences, ni l'envie de créer du contenu
+          régulièrement pour gagner en visibilité. Les algorithmes évoluent constamment et il
+          devient de plus en plus difficile de se faire connaître uniquement grâce à eux.
+        </p>
+        <p>
+          C'est pour répondre à cette réalité qu'ADM a été créé. Notre ambition est d'offrir aux
+          prestataires une nouvelle façon de développer leur activité en leur permettant d'être
+          facilement découverts par de nouveaux clients, sans dépendre exclusivement des réseaux
+          sociaux.
+        </p>
+        <p>
+          Chaque professionnel pourra créer son profil, présenter ses services, mettre en avant
+          ses réalisations, gérer ses disponibilités et recevoir des demandes de réservation
+          directement depuis l'application. Notre objectif est de simplifier le quotidien des
+          indépendants tout en leur ouvrant de nouvelles opportunités de croissance.
+        </p>
+      </div>
+
+      <div class="mini-feature-grid">
+        <div class="mini-feature">
+          <span class="mini-feature-icon">👤</span>
+          <span>Profil professionnel</span>
+        </div>
+        <div class="mini-feature">
+          <span class="mini-feature-icon">📷</span>
+          <span>Portfolio de réalisations</span>
+        </div>
+        <div class="mini-feature">
+          <span class="mini-feature-icon">🕐</span>
+          <span>Gestion des disponibilités</span>
+        </div>
+        <div class="mini-feature">
+          <span class="mini-feature-icon">📥</span>
+          <span>Demandes de réservation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POURQUOI REJOINDRE ADM ============ -->
+  <section class="section section-tint" id="pourquoi">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Vos bénéfices</p>
+        <h2>Pourquoi rejoindre ADM ?</h2>
+      </div>
+
+      <div class="benefit-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#E8ECF4;color:#1E2A4A">👁</div>
+          <p>Gagnez en visibilité auprès de nouveaux clients.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#FDF0EC;color:#E07A5F">📈</div>
+          <p>Développez votre activité grâce à une plateforme dédiée aux indépendants.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#E8F0F6;color:#6B8FAD">🗓</div>
+          <p>Centralisez vos demandes de réservation.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#F4C2B3;color:#C4654A">🖼</div>
+          <p>Présentez vos réalisations dans un profil professionnel.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#F0E4C0;color:#8B6914">★</div>
+          <p>Renforcez votre crédibilité grâce aux avis clients.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#EAF2EA;color:#5B8C5A">⏱</div>
+          <p>Gagnez du temps avec une gestion simplifiée.</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon" style="background:#F0EDE8;color:#2A3D6B">🤝</div>
+          <p>Rejoignez une communauté de professionnels qui évoluent ensemble.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VOS IDEES NOUS INTERESSENT ============ -->
+  <section class="section" id="idee">
+    <div class="container container-narrow">
+      <div class="section-head">
+        <p class="eyebrow">Votre avis compte</p>
+        <h2>Construisons ADM ensemble</h2>
+        <p class="section-lead">
+          ADM est une plateforme créée pour répondre aux besoins des prestataires. Vous avez une
+          idée, une fonctionnalité ou une suggestion qui pourrait améliorer l'expérience ?
+          Nous serions ravis de la découvrir.
+        </p>
+      </div>
+
+      <form class="idea-form" id="ideaForm" novalidate>
+        <div class="form-field">
+          <label for="idea-text">Votre idée</label>
+          <textarea id="idea-text" name="idea" rows="5" required placeholder="Partagez votre idée, suggestion ou fonctionnalité…"></textarea>
+          <span class="field-error" data-error-for="idea-text"></span>
+        </div>
+
+        <div class="form-field">
+          <label for="idea-email">Adresse e-mail <span class="optional-tag">(optionnel)</span></label>
+          <input type="email" id="idea-email" name="email" placeholder="vous@exemple.com" autocomplete="email">
+          <span class="field-error" data-error-for="idea-email"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg">Envoyer mon idée</button>
+        <p class="form-note" data-form-note aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="container footer-inner-simple">
+    <a href="#top" class="brand brand-light">
+      <img src="assets/img/logo-icon.png" alt="" class="brand-mark brand-mark-invert" width="28" height="28">
+      <span class="brand-name">ADM</span>
+    </a>
+
+    <nav class="footer-links" aria-label="Liens légaux">
+      <a href="mentions-legales.html">Mentions légales</a>
+      <span class="footer-disabled">Politique de confidentialité <small>(bientôt)</small></span>
+    </nav>
+
+    <a href="mailto:adm.appcontacts@gmail.com" class="footer-mail">adm.appcontacts@gmail.com</a>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; <span id="year"></span> ADM — Autour De Moi. Tous droits réservés.</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
