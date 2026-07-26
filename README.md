@@ -5,9 +5,11 @@ indépendants (coiffeurs, esthéticiennes, barbers, traiteurs, photographes...)
 de gagner en visibilité et de développer leur clientèle. L'objectif unique de
 cette page : convertir un visiteur prestataire en inscrit à la liste d'attente.
 
-Ce dossier est **autonome** : HTML / CSS / JS "vanilla", sans build, sans
-dépendance, prêt à être poussé tel quel dans son propre dépôt Git et déployé
-sur n'importe quel hébergeur statique (Vercel, Netlify, GitHub Pages, etc.).
+Ce dossier est **autonome** : HTML / CSS / JS "vanilla" côté site (aucun
+build), + quelques fonctions serverless (`api/`) pour le formulaire
+d'inscription. Ces fonctions utilisent l'infrastructure Vercel (Vercel KV
+pour le stockage), donc **le déploiement se fait sur Vercel** (pas
+n'importe quel hébergeur statique, contrairement à une page 100% statique).
 
 ## 🎨 Identité visuelle
 
@@ -42,55 +44,86 @@ boutons d'action.
 ```
 adm-site-vitrine/
 ├── index.html            Page unique, sections ancrées
+├── admin-x7f2k9.html      Page secrète : tableau des inscriptions (protégée par mot de passe)
 ├── mentions-legales.html Page légale (à compléter avant mise en ligne)
 ├── confidentialite.html  Politique de confidentialité (prête, pas encore liée en footer)
 ├── css/style.css         Tous les styles (variables CSS = design system ADM)
-├── js/main.js            Menu mobile, validation des 2 formulaires, animations
-├── assets/img/           Logo, favicon, icônes
+├── js/main.js            Validation + envoi des formulaires, animations
+├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
+├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par mot de passe)
+├── package.json          Dépendances des fonctions serverless (@vercel/kv, nodemailer)
+├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
+├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
 └── README.md
 ```
 
 ## 🚀 Lancer en local
 
-```bash
-# Option 1 — ouvrir directement le fichier
-open index.html
+Le site (HTML/CSS/JS) s'ouvre directement sans rien installer :
 
-# Option 2 — servir le dossier (recommandé)
-npx serve .
-# ou
-python3 -m http.server 8080
+```bash
+open index.html
 ```
 
-## 📬 Brancher les formulaires
+Mais le formulaire d'inscription (`/api/signup`) ne fonctionnera qu'une
+fois déployé sur Vercel (ou via `vercel dev` en local, avec un fichier
+`.env.local` rempli à partir de `.env.example` — plus avancé, pas
+nécessaire pour juste consulter/modifier le design).
 
-Les deux formulaires (`#signupForm` et `#ideaForm` dans `index.html`, logique
-dans `js/main.js`) font actuellement de la **validation côté client
-uniquement** — ils affichent un message de confirmation simulé mais
-n'envoient rien nulle part. Pour les rendre réellement fonctionnels :
+## 📬 Formulaire d'inscription : Vercel KV + email Gmail + page admin
 
-### Option A — Formspree (le plus rapide, gratuit jusqu'à 50 envois/mois)
-1. Créez un formulaire sur [formspree.io](https://formspree.io).
-2. Ajoutez `action="https://formspree.io/f/VOTRE_ID"` et `method="POST"`
-   sur les balises `<form>` concernées.
-3. Dans `js/main.js`, remplacez le `showNote(...)` de succès par un vrai
-   `fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } })`.
+Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
+1. La fonction serverless **`api/signup.js`** enregistre l'inscription
+   (nom/entreprise, téléphone, email, domaine) dans une base **Vercel KV**.
+2. Elle envoie un email de notification à `adm.appcontacts@gmail.com` via
+   Gmail (SMTP, librairie `nodemailer`).
+3. Vous consultez toutes les inscriptions sur une page secrète du site :
+   **`/admin-x7f2k9.html`**, protégée par un mot de passe (vérifié côté
+   serveur par `api/leads.js`, pas juste caché côté navigateur).
 
-### Option B — EmailJS (envoi direct depuis le navigateur, sans backend)
-1. Créez un compte sur [emailjs.com](https://www.emailjs.com), un service
-   d'envoi et un template.
-2. Ajoutez le SDK EmailJS dans `index.html`.
-3. Appelez `emailjs.sendForm(...)` dans les handlers de soumission à la
-   place du `showNote(...)` de succès.
+Trois choses à configurer une seule fois, dans **Vercel > votre projet >
+Settings** :
 
-### Option C — Votre propre API / Google Sheet
-Remplacez le `showNote(...)` par un appel à votre endpoint
-(`POST /api/waitlist`, `POST /api/idea`) qui enregistre les leads (email +
-domaine d'activité pour l'inscription).
+### 1. Activer le stockage (Vercel KV)
+- Onglet **Storage** → **Create Database** → choisissez **KV** → donnez-lui
+  un nom (ex. `adm-leads`) → **Connect** au projet `adm-site`.
+- Vercel ajoute automatiquement les variables `KV_REST_API_URL` et
+  `KV_REST_API_TOKEN` au projet — rien à copier manuellement.
 
-Dans tous les cas, gardez la validation existante (`isValidEmail`, champs
-requis, gestion du champ "Autre" pour le domaine) : elle continue à filtrer
-les entrées invalides avant l'envoi.
+### 2. Créer un mot de passe d'application Gmail
+- Sur le compte `adm.appcontacts@gmail.com` : activez la **validation en
+  2 étapes** si ce n'est pas déjà fait (myaccount.google.com/security).
+- Puis allez sur **myaccount.google.com/apppasswords**, créez un mot de
+  passe d'application (nom libre, ex. "Site ADM"), copiez le code à
+  16 caractères généré.
+
+### 3. Ajouter les variables d'environnement sur Vercel
+Toujours dans **Settings > Environment Variables** du projet, ajoutez :
+
+| Nom | Valeur |
+|---|---|
+| `GMAIL_USER` | `adm.appcontacts@gmail.com` |
+| `GMAIL_APP_PASSWORD` | le code à 16 caractères de l'étape 2 |
+| `ADMIN_PASSWORD` | un mot de passe fort de votre choix, pour `/admin-x7f2k9.html` |
+
+Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les
+nouvelles variables soient prises en compte.
+
+### Tester
+Remplissez le formulaire sur le site → un email doit arriver à
+`adm.appcontacts@gmail.com`, et l'inscription doit apparaître sur
+`https://votre-domaine.vercel.app/admin-x7f2k9.html` (mot de passe =
+`ADMIN_PASSWORD`).
+
+⚠️ **`/admin-x7f2k9.html` est protégée par mot de passe, mais son adresse
+reste "secrète par obscurité"** : ne la liez nulle part sur le site public,
+ne la partagez pas, et changez le nom du fichier si vous pensez que l'URL a
+fuité (le mot de passe reste la vraie protection).
+
+### Le formulaire "Vos idées nous intéressent" (`#ideaForm`)
+Non branché à ce jour (le message reste local, rien n'est enregistré).
+Dites-moi si vous voulez aussi router ces suggestions vers Vercel KV / un
+email — même principe que ci-dessus.
 
 ## ⚖️ Avant mise en production
 
@@ -100,23 +133,19 @@ les entrées invalides avant l'envoi.
       existe déjà et est à jour avec les 2 formulaires actuels — il suffit
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
-- [ ] Brancher un vrai service d'envoi pour les 2 formulaires (voir
-      ci-dessus) — sans ça, aucune inscription n'est réellement enregistrée.
+- [ ] Configurer Vercel KV + Gmail App Password + variables d'environnement
+      (voir ci-dessus) — sans ça, les inscriptions ne sont enregistrées
+      nulle part et aucun email n'est envoyé.
+- [ ] Choisir un `ADMIN_PASSWORD` fort et le garder secret.
 - [ ] Vérifier l'adresse `adm.appcontacts@gmail.com` utilisée dans le footer
       et les pages légales.
 
-## 📦 Déployer dans un nouveau dépôt
+## 📦 Déployer
 
-```bash
-cd adm-site-vitrine
-git init
-git add .
-git commit -m "Initial commit — site vitrine ADM"
-git branch -M main
-git remote add origin <url-de-votre-nouveau-repo>
-git push -u origin main
-```
-
-Puis connectez le dépôt à Vercel / Netlify / GitHub Pages : aucune commande
-de build n'est nécessaire, le dossier racine est directement servable
-(fichier d'entrée : `index.html`).
+Le dépôt est déjà initialisé et poussé sur
+[github.com/marvynclouet/adm-site](https://github.com/marvynclouet/adm-site).
+Pour déployer sur Vercel : **vercel.com/new** → Import Git Repository →
+`marvynclouet/adm-site` → Deploy (aucune config de build nécessaire, Vercel
+détecte automatiquement le dossier `api/` et installe les dépendances de
+`package.json`). Pensez à configurer les 3 variables d'environnement
+ci-dessus après le premier déploiement.

@@ -5,6 +5,13 @@
 (function () {
   'use strict';
 
+  /* ---------- Backend inscription (Vercel /api/signup) ----------
+   * Même origine que le site une fois déployé sur Vercel : pas de souci
+   * CORS. En local (fichier ouvert directement, sans `vercel dev`), l'appel
+   * échoue simplement et un message d'erreur s'affiche — voir README.md.
+   */
+  var SIGNUP_ENDPOINT_URL = '/api/signup';
+
   /* ---------- Année dans le footer ---------- */
   var yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
@@ -111,10 +118,43 @@
         return;
       }
 
-      // Pas de backend branché par défaut : voir README.md.
-      // Remplacez ce bloc par un fetch() vers votre endpoint (Formspree, EmailJS, API...).
-      showNote(signupForm, 'Merci, vous êtes inscrit·e ! Nous vous tiendrons informé·e des prochaines étapes du lancement d\'ADM.', 'success');
-      // signupForm.reset();
+      var domaineValue = domaine.value === 'Autre'
+        ? (signupForm.querySelector('#su-other').value.trim() || 'Autre')
+        : domaine.value;
+
+      var payload = {
+        name: name.value.trim(),
+        phone: phone.value.trim(),
+        email: email.value.trim(),
+        domaine: domaine.value,
+        domaine_autre: domaineValue
+      };
+
+      var submitBtn = signupForm.querySelector('button[type="submit"]');
+      var restoreBtn = function () { if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Je rejoins ADM'; } };
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Envoi en cours…'; }
+
+      fetch(SIGNUP_ENDPOINT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (response) { return response.json(); })
+        .then(function (result) {
+          restoreBtn();
+          if (result && result.status === 'success') {
+            showNote(signupForm, 'Merci, vous êtes inscrit·e ! Nous vous tiendrons informé·e des prochaines étapes du lancement d\'ADM.', 'success');
+            signupForm.reset();
+            if (otherWrap) otherWrap.hidden = true;
+          } else {
+            showNote(signupForm, 'Un problème est survenu lors de l\'envoi. Merci de réessayer.', 'error');
+          }
+        })
+        .catch(function () {
+          restoreBtn();
+          showNote(signupForm, 'Un problème est survenu lors de l\'envoi. Merci de réessayer.', 'error');
+        });
     });
   }
 

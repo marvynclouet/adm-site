@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADM — Inscriptions</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background: var(--cream); }
+  .admin-wrap { max-width: 1000px; margin: 0 auto; padding: 64px 24px; }
+  .admin-gate {
+    max-width: 380px; margin: 80px auto; background: var(--white);
+    border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+  }
+  .admin-gate h1 { font-size: 22px; margin-bottom: 6px; }
+  .admin-gate p { font-size: 14px; margin-bottom: 20px; }
+  .admin-gate input {
+    width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px 14px; font-size: 15px; font-family: inherit; margin-bottom: 14px;
+  }
+  .admin-error { color: var(--error); font-size: 13.5px; font-weight: 600; min-height: 18px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+  th, td { text-align: left; padding: 12px 14px; font-size: 14px; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .3px; }
+  tr:last-child td { border-bottom: none; }
+  .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .admin-count { font-size: 14px; color: var(--text-secondary); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+  [hidden] { display: none !important; }
+  @media (max-width: 700px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { background: var(--white); border-radius: var(--radius-sm); margin-bottom: 12px; box-shadow: var(--shadow-sm); padding: 8px 0; }
+    td { border: none; padding: 6px 14px; }
+    td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate" class="admin-gate">
+  <h1>ADM — Inscriptions</h1>
+  <p>Accès réservé. Entrez le mot de passe pour consulter les inscriptions.</p>
+  <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="current-password">
+  <p class="admin-error" id="gateError"></p>
+  <button type="button" class="btn btn-primary btn-block" id="gateSubmit">Voir les inscriptions</button>
+</div>
+
+<div id="content" class="admin-wrap" hidden>
+  <div class="admin-header">
+    <div>
+      <h1 style="margin-bottom:2px;">Inscriptions ADM</h1>
+      <span class="admin-count" id="count"></span>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" id="refreshBtn">Actualiser</button>
+  </div>
+  <div id="tableWrap"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var gate = document.getElementById('gate');
+  var content = document.getElementById('content');
+  var pwdInput = document.getElementById('pwd');
+  var gateError = document.getElementById('gateError');
+  var gateSubmit = document.getElementById('gateSubmit');
+  var tableWrap = document.getElementById('tableWrap');
+  var countEl = document.getElementById('count');
+  var refreshBtn = document.getElementById('refreshBtn');
+
+  function getStoredPassword() {
+    return sessionStorage.getItem('adm_admin_pwd') || '';
+  }
+
+  function fetchLeads(password) {
+    gateError.textContent = '';
+    return fetch('/api/leads?password=' + encodeURIComponent(password))
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (result) {
+        if (!result.ok) {
+          throw new Error(result.data && result.data.message ? result.data.message : 'Erreur');
+        }
+        return result.data.leads || [];
+      });
+  }
+
+  function renderLeads(leads) {
+    countEl.textContent = leads.length + ' inscription' + (leads.length > 1 ? 's' : '');
+
+    if (!leads.length) {
+      tableWrap.innerHTML = '<div class="empty-state">Aucune inscription pour le moment.</div>';
+      return;
+    }
+
+    var rows = leads.map(function (lead) {
+      var d = lead.date ? new Date(lead.date) : null;
+      var dateStr = d ? d.toLocaleString('fr-FR') : '—';
+      return (
+        '<tr>' +
+        '<td data-label="Date">' + dateStr + '</td>' +
+        '<td data-label="Nom / Entreprise">' + escapeHtml(lead.name) + '</td>' +
+        '<td data-label="Téléphone">' + escapeHtml(lead.phone) + '</td>' +
+        '<td data-label="Email">' + escapeHtml(lead.email) + '</td>' +
+        '<td data-label="Domaine">' + escapeHtml(lead.domaine) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+
+    tableWrap.innerHTML =
+      '<table><thead><tr><th>Date</th><th>Nom / Entreprise</th><th>Téléphone</th><th>Email</th><th>Domaine</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function unlock(password) {
+    fetchLeads(password)
+      .then(function (leads) {
+        sessionStorage.setItem('adm_admin_pwd', password);
+        gate.hidden = true;
+        content.hidden = false;
+        renderLeads(leads);
+      })
+      .catch(function (err) {
+        gateError.textContent = err.message || 'Mot de passe incorrect.';
+      });
+  }
+
+  gateSubmit.addEventListener('click', function () { unlock(pwdInput.value); });
+  pwdInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') unlock(pwdInput.value); });
+
+  refreshBtn.addEventListener('click', function () {
+    fetchLeads(getStoredPassword()).then(renderLeads).catch(function (err) {
+      alert(err.message || 'Erreur lors de l\'actualisation.');
+    });
+  });
+
+  var stored = getStoredPassword();
+  if (stored) { unlock(stored); }
+})();
+</script>
+
+</body>
+</html>
