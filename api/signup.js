@@ -1,44 +1,44 @@
 // Fonction serverless Vercel — reçoit une inscription du formulaire,
-// l'enregistre dans Upstash Redis (via l'intégration Vercel Storage), et
-// envoie une notification email via EmailJS.
+// l'enregistre dans Supabase (le même projet que l'app mobile), et envoie
+// une notification email via Resend.
 // Variables d'environnement requises (voir README.md) :
-//   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  (injectées automatiquement
-//     quand on connecte une base Upstash au projet, dans Vercel > Storage)
-//   EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY / EMAILJS_PRIVATE_KEY
+//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (depuis le projet Supabase existant)
+//   RESEND_API_KEY
 
-const { Redis } = require('@upstash/redis');
+const { createClient } = require('@supabase/supabase-js');
 
-const redis = Redis.fromEnv();
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const NOTIFY_EMAIL = 'adm.appcontacts@gmail.com';
+const FROM_EMAIL = 'ADM Site <onboarding@resend.dev>';
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 async function sendNotificationEmail(lead) {
-  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: 'Bearer ' + process.env.RESEND_API_KEY,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({
-      service_id: process.env.EMAILJS_SERVICE_ID,
-      template_id: process.env.EMAILJS_TEMPLATE_ID,
-      user_id: process.env.EMAILJS_PUBLIC_KEY,
-      accessToken: process.env.EMAILJS_PRIVATE_KEY,
-      template_params: {
-        to_email: NOTIFY_EMAIL,
-        lead_name: lead.name,
-        lead_phone: lead.phone,
-        lead_email: lead.email,
-        lead_domaine: lead.domaine,
-        lead_date: lead.date
-      }
+      from: FROM_EMAIL,
+      to: [NOTIFY_EMAIL],
+      subject: 'Nouvelle inscription ADM — ' + lead.name,
+      text:
+        'Nouvelle inscription à la liste d\'attente ADM :\n\n' +
+        'Nom / Entreprise : ' + lead.name + '\n' +
+        'Téléphone : ' + lead.phone + '\n' +
+        'Email : ' + lead.email + '\n' +
+        'Domaine : ' + lead.domaine + '\n'
     })
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error('EmailJS: ' + response.status + ' ' + text);
+    throw new Error('Resend: ' + response.status + ' ' + text);
   }
 }
 
@@ -63,7 +63,6 @@ module.exports = async (req, res) => {
   const finalDomaine = domaine === 'Autre' && domaineAutre ? domaineAutre : domaine;
 
   const lead = {
-    date: new Date().toISOString(),
     name: name,
     phone: phone,
     email: email,
@@ -71,9 +70,10 @@ module.exports = async (req, res) => {
   };
 
   try {
-    await redis.rpush('adm:leads', JSON.stringify(lead));
+    const { error } = await supabase.from('adm_site_leads').insert(lead);
+    if (error) throw error;
   } catch (err) {
-    console.error('Erreur Redis:', err);
+    console.error('Erreur Supabase:', err);
     res.status(500).json({ status: 'error', message: 'Erreur lors de l\'enregistrement' });
     return;
   }
@@ -81,9 +81,9 @@ module.exports = async (req, res) => {
   try {
     await sendNotificationEmail(lead);
   } catch (err) {
-    // L'inscription est déjà enregistrée dans Redis : on ne fait pas échouer
-    // la requête si seul l'envoi d'email a un problème (ex: identifiants
-    // EmailJS pas encore configurés). On le signale juste en log.
+    // L'inscription est déjà enregistrée dans Supabase : on ne fait pas
+    // échouer la requête si seul l'envoi d'email a un problème (ex:
+    // identifiants Resend pas encore configurés). On le signale en log.
     console.error('Erreur envoi email:', err);
   }
 

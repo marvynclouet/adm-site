@@ -7,10 +7,10 @@ cette page : convertir un visiteur prestataire en inscrit à la liste d'attente.
 
 Ce dossier est **autonome** : HTML / CSS / JS "vanilla" côté site (aucun
 build), + quelques fonctions serverless (`api/`) pour le formulaire
-d'inscription. Ces fonctions utilisent une base **Upstash Redis** connectée
-au projet Vercel (Storage intégré à Vercel), donc **le déploiement se fait
-sur Vercel** (pas n'importe quel hébergeur statique, contrairement à une
-page 100% statique).
+d'inscription. Ces fonctions enregistrent les inscriptions dans le **même
+projet Supabase que l'application mobile ADM-APP**, donc **le déploiement
+se fait sur Vercel** (pas n'importe quel hébergeur statique, contrairement
+à une page 100% statique).
 
 ## 🎨 Identité visuelle
 
@@ -52,7 +52,7 @@ adm-site-vitrine/
 ├── js/main.js            Validation + envoi des formulaires, animations
 ├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
 ├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par mot de passe)
-├── package.json          Dépendances des fonctions serverless (@upstash/redis)
+├── package.json          Dépendances des fonctions serverless (@supabase/supabase-js)
 ├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
 ├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
 └── README.md
@@ -71,15 +71,17 @@ fois déployé sur Vercel (ou via `vercel dev` en local, avec un fichier
 `.env.local` rempli à partir de `.env.example` — plus avancé, pas
 nécessaire pour juste consulter/modifier le design).
 
-## 📬 Formulaire d'inscription : Upstash Redis + EmailJS + page admin
+## 📬 Formulaire d'inscription : Supabase + Resend + page admin
 
 Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 1. La fonction serverless **`api/signup.js`** enregistre l'inscription
-   (nom/entreprise, téléphone, email, domaine) dans une base **Upstash
-   Redis** connectée au projet.
+   (nom/entreprise, téléphone, email, domaine) dans une table du **même
+   projet Supabase que l'application mobile** (aucun nouveau compte à
+   créer pour le stockage).
 2. Elle envoie un email de notification à `adm.appcontacts@gmail.com` via
-   **EmailJS** (pas de mot de passe d'application Gmail à générer : on
-   connecte le compte Google en un clic depuis EmailJS).
+   **Resend** — pas besoin de se connecter à un compte Gmail (ni le vôtre
+   ni celui des clients) : juste une clé API pour *envoyer*, l'adresse de
+   réception peut être n'importe quelle adresse valide, accessible ou non.
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
    **`/admin-x7f2k9.html`**, protégée par un mot de passe (vérifié côté
    serveur par `api/leads.js`, jamais stocké dans le code — juste dans une
@@ -87,42 +89,38 @@ Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 
 Trois choses à configurer une seule fois :
 
-### 1. Activer le stockage (Upstash Redis) — dans Vercel
-- Projet Vercel → onglet **Storage** → **Create Database** → choisissez
-  **Upstash** (parfois listé sous "Marketplace Database Integrations") →
-  type **Redis**.
-  ⚠️ Ne prenez pas "Edge Config" : ce n'est pas fait pour stocker des
-  inscriptions qui s'accumulent (c'est limité à 8 Ko et pensé pour de la
-  config en lecture seule).
-- Donnez-lui un nom (ex. `adm-leads`) → **Connect** au projet `adm-site`.
-- Vercel ajoute automatiquement les variables `UPSTASH_REDIS_REST_URL` et
-  `UPSTASH_REDIS_REST_TOKEN` au projet — rien à copier manuellement.
+### 1. Créer la table dans Supabase (le projet existant de l'app)
+1. Ouvrez **[supabase.com/dashboard](https://supabase.com/dashboard)** →
+   le projet utilisé par ADM-APP.
+2. Onglet **SQL Editor** → **New query** → collez et exécutez :
+   ```sql
+   create table if not exists public.adm_site_leads (
+     id bigint generated always as identity primary key,
+     created_at timestamptz not null default now(),
+     name text not null,
+     phone text not null,
+     email text not null,
+     domaine text not null
+   );
+   ```
+   (Une table dédiée au site vitrine, séparée des tables de l'app — aucun
+   risque pour les données existantes.)
+3. Onglet **Project Settings > API** : notez l'**URL du projet** et la clé
+   **`service_role`** (⚠️ pas la clé `anon` publique — la `service_role`
+   uniquement, elle ne doit jamais apparaître ailleurs que dans les
+   variables d'environnement Vercel).
 
-### 2. Configurer l'email — sur emailjs.com
-1. Créez un compte gratuit sur **[emailjs.com](https://www.emailjs.com)**
-   (200 emails/mois gratuits).
-2. **Email Services > Add New Service > Gmail** → cliquez **Connect
-   Account** et connectez `adm.appcontacts@gmail.com` (juste une
-   autorisation Google en un clic, pas de mot de passe à créer) → notez le
-   **Service ID** affiché.
-3. **Email Templates > Create New Template**. Réglages du template :
-   - **To Email** : `adm.appcontacts@gmail.com` (en dur)
-   - **Subject** : `Nouvelle inscription ADM — {{lead_name}}`
-   - **Content**, par exemple :
-     ```
-     Nouvelle inscription à la liste d'attente ADM :
-
-     Nom / Entreprise : {{lead_name}}
-     Téléphone : {{lead_phone}}
-     Email : {{lead_email}}
-     Domaine : {{lead_domaine}}
-     Date : {{lead_date}}
-     ```
-   - Enregistrez, notez le **Template ID**.
-4. **Account > General** : notez votre **Public Key**.
-5. **Account > Security** : créez et notez une **Private Key** (nécessaire
-   pour un envoi depuis un serveur, comme notre fonction, plutôt que
-   depuis un navigateur).
+### 2. Créer une clé Resend (aucune connexion Gmail nécessaire)
+1. Créez un compte gratuit sur **[resend.com](https://resend.com)** avec
+   n'importe quelle adresse email que vous possédez (100 emails/jour
+   gratuits, largement suffisant).
+2. **API Keys > Create API Key** → copiez la clé générée (elle ne sera
+   affichée qu'une fois).
+3. Rien d'autre à faire pour commencer à tester : Resend fournit un domaine
+   d'expéditeur de test (`onboarding@resend.dev`) déjà utilisé dans le
+   code. Si vous voulez envoyer depuis une adresse `@adm-app.fr` (ou autre
+   domaine à vous) plus tard, il faudra vérifier ce domaine dans Resend —
+   pas nécessaire pour que ça fonctionne dès maintenant.
 
 ### 3. Ajouter les variables d'environnement sur Vercel
 Dans **Vercel > votre projet > Settings > Environment Variables**,
@@ -130,10 +128,9 @@ ajoutez :
 
 | Nom | Valeur |
 |---|---|
-| `EMAILJS_SERVICE_ID` | l'ID de l'étape 2.2 |
-| `EMAILJS_TEMPLATE_ID` | l'ID de l'étape 2.3 |
-| `EMAILJS_PUBLIC_KEY` | la clé de l'étape 2.4 |
-| `EMAILJS_PRIVATE_KEY` | la clé de l'étape 2.5 |
+| `SUPABASE_URL` | l'URL du projet, étape 1.3 |
+| `SUPABASE_SERVICE_ROLE_KEY` | la clé `service_role`, étape 1.3 |
+| `RESEND_API_KEY` | la clé de l'étape 2.2 |
 | `ADMIN_PASSWORD` | un mot de passe fort de votre choix, pour `/admin-x7f2k9.html` |
 
 Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les
@@ -152,7 +149,7 @@ fuité (le mot de passe reste la vraie protection).
 
 ### Le formulaire "Vos idées nous intéressent" (`#ideaForm`)
 Non branché à ce jour (le message reste local, rien n'est enregistré).
-Dites-moi si vous voulez aussi router ces suggestions vers Redis / un
+Dites-moi si vous voulez aussi router ces suggestions vers Supabase / un
 email — même principe que ci-dessus.
 
 ## ⚖️ Avant mise en production
@@ -163,7 +160,7 @@ email — même principe que ci-dessus.
       existe déjà et est à jour avec les 2 formulaires actuels — il suffit
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
-- [ ] Configurer Upstash Redis + Gmail App Password + variables d'environnement
+- [ ] Créer la table Supabase + configurer Resend + variables d'environnement
       (voir ci-dessus) — sans ça, les inscriptions ne sont enregistrées
       nulle part et aucun email n'est envoyé.
 - [ ] Choisir un `ADMIN_PASSWORD` fort et le garder secret.

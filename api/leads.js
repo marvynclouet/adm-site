@@ -2,9 +2,9 @@
 // protégée par le mot de passe ADMIN_PASSWORD (variable d'environnement).
 // Appelée uniquement par la page admin secrète (voir README.md).
 
-const { Redis } = require('@upstash/redis');
+const { createClient } = require('@supabase/supabase-js');
 
-const redis = Redis.fromEnv();
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 module.exports = async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];
@@ -15,21 +15,26 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const raw = await redis.lrange('adm:leads', 0, -1);
-    const leads = raw
-      .map(function (item) {
-        try {
-          return typeof item === 'string' ? JSON.parse(item) : item;
-        } catch (e) {
-          return null;
-        }
-      })
-      .filter(Boolean)
-      .reverse();
+    const { data, error } = await supabase
+      .from('adm_site_leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const leads = (data || []).map(function (row) {
+      return {
+        date: row.created_at,
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        domaine: row.domaine
+      };
+    });
 
     res.status(200).json({ status: 'success', leads: leads });
   } catch (err) {
-    console.error('Erreur Redis:', err);
+    console.error('Erreur Supabase:', err);
     res.status(500).json({ status: 'error', message: 'Erreur lors de la lecture' });
   }
 };

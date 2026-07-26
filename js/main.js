@@ -51,9 +51,9 @@
   }
 
   /* ---------- Validation & envoi des formulaires ----------
-   * NOTE : ces formulaires n'ont pas de backend par défaut.
-   * Voir le README.md ("Brancher les formulaires") pour les connecter
-   * à Formspree, EmailJS ou votre propre API.
+   * Le formulaire d'inscription (#signupForm) envoie vers /api/signup
+   * (Supabase + Resend, voir README.md). Le formulaire "idée" (#ideaForm)
+   * n'a pas de backend pour l'instant — voir README.md si besoin.
    */
   function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
