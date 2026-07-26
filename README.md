@@ -52,7 +52,7 @@ adm-site-vitrine/
 ├── js/main.js            Validation + envoi des formulaires, animations
 ├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
 ├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par mot de passe)
-├── package.json          Dépendances des fonctions serverless (@upstash/redis, nodemailer)
+├── package.json          Dépendances des fonctions serverless (@upstash/redis)
 ├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
 ├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
 └── README.md
@@ -71,24 +71,26 @@ fois déployé sur Vercel (ou via `vercel dev` en local, avec un fichier
 `.env.local` rempli à partir de `.env.example` — plus avancé, pas
 nécessaire pour juste consulter/modifier le design).
 
-## 📬 Formulaire d'inscription : Upstash Redis + email Gmail + page admin
+## 📬 Formulaire d'inscription : Upstash Redis + EmailJS + page admin
 
 Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 1. La fonction serverless **`api/signup.js`** enregistre l'inscription
    (nom/entreprise, téléphone, email, domaine) dans une base **Upstash
    Redis** connectée au projet.
 2. Elle envoie un email de notification à `adm.appcontacts@gmail.com` via
-   Gmail (SMTP, librairie `nodemailer`).
+   **EmailJS** (pas de mot de passe d'application Gmail à générer : on
+   connecte le compte Google en un clic depuis EmailJS).
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
    **`/admin-x7f2k9.html`**, protégée par un mot de passe (vérifié côté
-   serveur par `api/leads.js`, pas juste caché côté navigateur).
+   serveur par `api/leads.js`, jamais stocké dans le code — juste dans une
+   variable d'environnement Vercel, chiffrée au repos par Vercel).
 
-Trois choses à configurer une seule fois, dans **Vercel > votre projet >
-Settings** :
+Trois choses à configurer une seule fois :
 
-### 1. Activer le stockage (Upstash Redis)
-- Onglet **Storage** → **Create Database** → choisissez **Upstash**
-  (parfois listé sous "Marketplace Database Integrations") → type **Redis**.
+### 1. Activer le stockage (Upstash Redis) — dans Vercel
+- Projet Vercel → onglet **Storage** → **Create Database** → choisissez
+  **Upstash** (parfois listé sous "Marketplace Database Integrations") →
+  type **Redis**.
   ⚠️ Ne prenez pas "Edge Config" : ce n'est pas fait pour stocker des
   inscriptions qui s'accumulent (c'est limité à 8 Ko et pensé pour de la
   config en lecture seule).
@@ -96,20 +98,42 @@ Settings** :
 - Vercel ajoute automatiquement les variables `UPSTASH_REDIS_REST_URL` et
   `UPSTASH_REDIS_REST_TOKEN` au projet — rien à copier manuellement.
 
-### 2. Créer un mot de passe d'application Gmail
-- Sur le compte `adm.appcontacts@gmail.com` : activez la **validation en
-  2 étapes** si ce n'est pas déjà fait (myaccount.google.com/security).
-- Puis allez sur **myaccount.google.com/apppasswords**, créez un mot de
-  passe d'application (nom libre, ex. "Site ADM"), copiez le code à
-  16 caractères généré.
+### 2. Configurer l'email — sur emailjs.com
+1. Créez un compte gratuit sur **[emailjs.com](https://www.emailjs.com)**
+   (200 emails/mois gratuits).
+2. **Email Services > Add New Service > Gmail** → cliquez **Connect
+   Account** et connectez `adm.appcontacts@gmail.com` (juste une
+   autorisation Google en un clic, pas de mot de passe à créer) → notez le
+   **Service ID** affiché.
+3. **Email Templates > Create New Template**. Réglages du template :
+   - **To Email** : `adm.appcontacts@gmail.com` (en dur)
+   - **Subject** : `Nouvelle inscription ADM — {{lead_name}}`
+   - **Content**, par exemple :
+     ```
+     Nouvelle inscription à la liste d'attente ADM :
+
+     Nom / Entreprise : {{lead_name}}
+     Téléphone : {{lead_phone}}
+     Email : {{lead_email}}
+     Domaine : {{lead_domaine}}
+     Date : {{lead_date}}
+     ```
+   - Enregistrez, notez le **Template ID**.
+4. **Account > General** : notez votre **Public Key**.
+5. **Account > Security** : créez et notez une **Private Key** (nécessaire
+   pour un envoi depuis un serveur, comme notre fonction, plutôt que
+   depuis un navigateur).
 
 ### 3. Ajouter les variables d'environnement sur Vercel
-Toujours dans **Settings > Environment Variables** du projet, ajoutez :
+Dans **Vercel > votre projet > Settings > Environment Variables**,
+ajoutez :
 
 | Nom | Valeur |
 |---|---|
-| `GMAIL_USER` | `adm.appcontacts@gmail.com` |
-| `GMAIL_APP_PASSWORD` | le code à 16 caractères de l'étape 2 |
+| `EMAILJS_SERVICE_ID` | l'ID de l'étape 2.2 |
+| `EMAILJS_TEMPLATE_ID` | l'ID de l'étape 2.3 |
+| `EMAILJS_PUBLIC_KEY` | la clé de l'étape 2.4 |
+| `EMAILJS_PRIVATE_KEY` | la clé de l'étape 2.5 |
 | `ADMIN_PASSWORD` | un mot de passe fort de votre choix, pour `/admin-x7f2k9.html` |
 
 Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les

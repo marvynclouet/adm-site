@@ -1,13 +1,12 @@
 // Fonction serverless Vercel — reçoit une inscription du formulaire,
 // l'enregistre dans Upstash Redis (via l'intégration Vercel Storage), et
-// envoie une notification email.
+// envoie une notification email via EmailJS.
 // Variables d'environnement requises (voir README.md) :
 //   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  (injectées automatiquement
 //     quand on connecte une base Upstash au projet, dans Vercel > Storage)
-//   GMAIL_USER / GMAIL_APP_PASSWORD
+//   EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY / EMAILJS_PRIVATE_KEY
 
 const { Redis } = require('@upstash/redis');
-const nodemailer = require('nodemailer');
 
 const redis = Redis.fromEnv();
 
@@ -15,6 +14,32 @@ const NOTIFY_EMAIL = 'adm.appcontacts@gmail.com';
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function sendNotificationEmail(lead) {
+  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_PUBLIC_KEY,
+      accessToken: process.env.EMAILJS_PRIVATE_KEY,
+      template_params: {
+        to_email: NOTIFY_EMAIL,
+        lead_name: lead.name,
+        lead_phone: lead.phone,
+        lead_email: lead.email,
+        lead_domaine: lead.domaine,
+        lead_date: lead.date
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error('EmailJS: ' + response.status + ' ' + text);
+  }
 }
 
 module.exports = async (req, res) => {
@@ -54,29 +79,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
-
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: NOTIFY_EMAIL,
-      subject: 'Nouvelle inscription ADM — ' + name,
-      text:
-        'Nouvelle inscription à la liste d\'attente ADM :\n\n' +
-        'Nom / Entreprise : ' + name + '\n' +
-        'Téléphone : ' + phone + '\n' +
-        'Email : ' + email + '\n' +
-        'Domaine : ' + finalDomaine + '\n'
-    });
+    await sendNotificationEmail(lead);
   } catch (err) {
     // L'inscription est déjà enregistrée dans Redis : on ne fait pas échouer
     // la requête si seul l'envoi d'email a un problème (ex: identifiants
-    // Gmail pas encore configurés). On le signale juste en log.
+    // EmailJS pas encore configurés). On le signale juste en log.
     console.error('Erreur envoi email:', err);
   }
 
