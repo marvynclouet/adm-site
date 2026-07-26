@@ -7,9 +7,10 @@ cette page : convertir un visiteur prestataire en inscrit à la liste d'attente.
 
 Ce dossier est **autonome** : HTML / CSS / JS "vanilla" côté site (aucun
 build), + quelques fonctions serverless (`api/`) pour le formulaire
-d'inscription. Ces fonctions utilisent l'infrastructure Vercel (Vercel KV
-pour le stockage), donc **le déploiement se fait sur Vercel** (pas
-n'importe quel hébergeur statique, contrairement à une page 100% statique).
+d'inscription. Ces fonctions utilisent une base **Upstash Redis** connectée
+au projet Vercel (Storage intégré à Vercel), donc **le déploiement se fait
+sur Vercel** (pas n'importe quel hébergeur statique, contrairement à une
+page 100% statique).
 
 ## 🎨 Identité visuelle
 
@@ -51,7 +52,7 @@ adm-site-vitrine/
 ├── js/main.js            Validation + envoi des formulaires, animations
 ├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
 ├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par mot de passe)
-├── package.json          Dépendances des fonctions serverless (@vercel/kv, nodemailer)
+├── package.json          Dépendances des fonctions serverless (@upstash/redis, nodemailer)
 ├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
 ├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
 └── README.md
@@ -70,11 +71,12 @@ fois déployé sur Vercel (ou via `vercel dev` en local, avec un fichier
 `.env.local` rempli à partir de `.env.example` — plus avancé, pas
 nécessaire pour juste consulter/modifier le design).
 
-## 📬 Formulaire d'inscription : Vercel KV + email Gmail + page admin
+## 📬 Formulaire d'inscription : Upstash Redis + email Gmail + page admin
 
 Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 1. La fonction serverless **`api/signup.js`** enregistre l'inscription
-   (nom/entreprise, téléphone, email, domaine) dans une base **Vercel KV**.
+   (nom/entreprise, téléphone, email, domaine) dans une base **Upstash
+   Redis** connectée au projet.
 2. Elle envoie un email de notification à `adm.appcontacts@gmail.com` via
    Gmail (SMTP, librairie `nodemailer`).
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
@@ -84,11 +86,15 @@ Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 Trois choses à configurer une seule fois, dans **Vercel > votre projet >
 Settings** :
 
-### 1. Activer le stockage (Vercel KV)
-- Onglet **Storage** → **Create Database** → choisissez **KV** → donnez-lui
-  un nom (ex. `adm-leads`) → **Connect** au projet `adm-site`.
-- Vercel ajoute automatiquement les variables `KV_REST_API_URL` et
-  `KV_REST_API_TOKEN` au projet — rien à copier manuellement.
+### 1. Activer le stockage (Upstash Redis)
+- Onglet **Storage** → **Create Database** → choisissez **Upstash**
+  (parfois listé sous "Marketplace Database Integrations") → type **Redis**.
+  ⚠️ Ne prenez pas "Edge Config" : ce n'est pas fait pour stocker des
+  inscriptions qui s'accumulent (c'est limité à 8 Ko et pensé pour de la
+  config en lecture seule).
+- Donnez-lui un nom (ex. `adm-leads`) → **Connect** au projet `adm-site`.
+- Vercel ajoute automatiquement les variables `UPSTASH_REDIS_REST_URL` et
+  `UPSTASH_REDIS_REST_TOKEN` au projet — rien à copier manuellement.
 
 ### 2. Créer un mot de passe d'application Gmail
 - Sur le compte `adm.appcontacts@gmail.com` : activez la **validation en
@@ -122,7 +128,7 @@ fuité (le mot de passe reste la vraie protection).
 
 ### Le formulaire "Vos idées nous intéressent" (`#ideaForm`)
 Non branché à ce jour (le message reste local, rien n'est enregistré).
-Dites-moi si vous voulez aussi router ces suggestions vers Vercel KV / un
+Dites-moi si vous voulez aussi router ces suggestions vers Redis / un
 email — même principe que ci-dessus.
 
 ## ⚖️ Avant mise en production
@@ -133,7 +139,7 @@ email — même principe que ci-dessus.
       existe déjà et est à jour avec les 2 formulaires actuels — il suffit
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
-- [ ] Configurer Vercel KV + Gmail App Password + variables d'environnement
+- [ ] Configurer Upstash Redis + Gmail App Password + variables d'environnement
       (voir ci-dessus) — sans ça, les inscriptions ne sont enregistrées
       nulle part et aucun email n'est envoyé.
 - [ ] Choisir un `ADMIN_PASSWORD` fort et le garder secret.

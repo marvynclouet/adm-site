@@ -2,9 +2,9 @@
   "name": "adm-site-vitrine",
   "private": true,
   "version": "1.0.0",
-  "description": "Site vitrine ADM — fonctions serverless Vercel pour le formulaire d'inscription (Vercel KV + email Gmail).",
+  "description": "Site vitrine ADM — fonctions serverless Vercel pour le formulaire d'inscription (Upstash Redis + email Gmail).",
   "dependencies": {
-    "@vercel/kv": "^1.0.1",
+    "@upstash/redis": "^1.34.3",
     "nodemailer": "^6.9.14"
   }
 }

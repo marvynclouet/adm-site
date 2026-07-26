@@ -1,11 +1,15 @@
 // Fonction serverless Vercel — reçoit une inscription du formulaire,
-// l'enregistre dans Vercel KV, et envoie une notification email.
+// l'enregistre dans Upstash Redis (via l'intégration Vercel Storage), et
+// envoie une notification email.
 // Variables d'environnement requises (voir README.md) :
-//   KV_REST_API_URL / KV_REST_API_TOKEN  (injectées automatiquement par Vercel KV)
+//   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  (injectées automatiquement
+//     quand on connecte une base Upstash au projet, dans Vercel > Storage)
 //   GMAIL_USER / GMAIL_APP_PASSWORD
 
-const { kv } = require('@vercel/kv');
+const { Redis } = require('@upstash/redis');
 const nodemailer = require('nodemailer');
+
+const redis = Redis.fromEnv();
 
 const NOTIFY_EMAIL = 'adm.appcontacts@gmail.com';
 
@@ -42,9 +46,9 @@ module.exports = async (req, res) => {
   };
 
   try {
-    await kv.rpush('adm:leads', JSON.stringify(lead));
+    await redis.rpush('adm:leads', JSON.stringify(lead));
   } catch (err) {
-    console.error('Erreur KV:', err);
+    console.error('Erreur Redis:', err);
     res.status(500).json({ status: 'error', message: 'Erreur lors de l\'enregistrement' });
     return;
   }
@@ -70,7 +74,7 @@ module.exports = async (req, res) => {
         'Domaine : ' + finalDomaine + '\n'
     });
   } catch (err) {
-    // L'inscription est déjà enregistrée dans KV : on ne fait pas échouer
+    // L'inscription est déjà enregistrée dans Redis : on ne fait pas échouer
     // la requête si seul l'envoi d'email a un problème (ex: identifiants
     // Gmail pas encore configurés). On le signale juste en log.
     console.error('Erreur envoi email:', err);

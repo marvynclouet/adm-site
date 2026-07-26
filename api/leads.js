@@ -2,7 +2,9 @@
 // protégée par le mot de passe ADMIN_PASSWORD (variable d'environnement).
 // Appelée uniquement par la page admin secrète (voir README.md).
 
-const { kv } = require('@vercel/kv');
+const { Redis } = require('@upstash/redis');
+
+const redis = Redis.fromEnv();
 
 module.exports = async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];
@@ -13,7 +15,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const raw = await kv.lrange('adm:leads', 0, -1);
+    const raw = await redis.lrange('adm:leads', 0, -1);
     const leads = raw
       .map(function (item) {
         try {
@@ -27,7 +29,7 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ status: 'success', leads: leads });
   } catch (err) {
-    console.error('Erreur KV:', err);
+    console.error('Erreur Redis:', err);
     res.status(500).json({ status: 'error', message: 'Erreur lors de la lecture' });
   }
 };
