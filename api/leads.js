@@ -1,10 +1,14 @@
 // Fonction serverless Vercel — renvoie la liste des inscriptions,
 // protégée par le mot de passe ADMIN_PASSWORD (variable d'environnement).
 // Appelée uniquement par la page admin secrète (voir README.md).
+//
+// Utilise la clé SECRÈTE Supabase (pas la clé publique/publishable) : elle
+// contourne les policies RLS pour pouvoir tout lire, et ne doit vivre que
+// dans cette fonction serverless — jamais côté navigateur.
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
 module.exports = async (req, res) => {
   const password = req.query.password || req.headers['x-admin-password'];

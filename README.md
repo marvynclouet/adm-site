@@ -71,7 +71,7 @@ fois déployé sur Vercel (ou via `vercel dev` en local, avec un fichier
 `.env.local` rempli à partir de `.env.example` — plus avancé, pas
 nécessaire pour juste consulter/modifier le design).
 
-## 📬 Formulaire d'inscription : Supabase + EmailJS + page admin
+## 📬 Formulaire d'inscription : Supabase + Resend + page admin
 
 Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
 1. La fonction serverless **`api/signup.js`** enregistre l'inscription
@@ -79,22 +79,28 @@ Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
    projet Supabase que l'application mobile** (aucun nouveau compte à
    créer pour le stockage).
 2. Elle envoie un email de notification à `adm.appcontacts@gmail.com` via
-   **EmailJS**.
+   **Resend** — aucune connexion à un compte Gmail nécessaire (ni le
+   vôtre, ni celui des clients) : juste une clé API.
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
    **`/admin-x7f2k9.html`**, protégée par un mot de passe (vérifié côté
    serveur par `api/leads.js`, jamais stocké dans le code — juste dans une
    variable d'environnement Vercel, chiffrée au repos par Vercel).
 
-⚠️ **Point important sur EmailJS** : le compte que vous connectez dans
-EmailJS (l'**expéditeur**) n'a pas besoin d'être `adm.appcontacts@gmail.com`.
-Vous pouvez connecter n'importe quel Gmail auquel **vous** avez accès (votre
-email perso par exemple) — `adm.appcontacts@gmail.com` n'intervient qu'en
-tant que **destinataire** dans le template, il n'y a jamais besoin de s'y
-connecter pour ça.
+Supabase utilise maintenant **deux clés différentes**, avec deux niveaux
+de confiance différents :
+- la clé **`publishable`** (anciennement "anon") : clé **publique**, sans
+  danger à manipuler, mais qui ne peut faire que ce qu'une **policy RLS**
+  autorise explicitement. Utilisée par `api/signup.js` pour *écrire* une
+  inscription — avec une policy qui n'autorise que l'écriture, pas la
+  lecture.
+- la clé **`secret`** (anciennement "service_role") : contourne les
+  policies, donc peut tout lire/écrire. Utilisée uniquement par
+  `api/leads.js` (jamais côté navigateur) pour afficher les inscriptions
+  sur la page admin.
 
 Trois choses à configurer une seule fois :
 
-### 1. Créer la table dans Supabase (le projet existant de l'app)
+### 1. Créer la table + les règles de sécurité dans Supabase
 1. Ouvrez **[supabase.com/dashboard](https://supabase.com/dashboard)** →
    le projet utilisé par ADM-APP.
 2. Onglet **SQL Editor** → **New query** → collez et exécutez :
@@ -107,38 +113,36 @@ Trois choses à configurer une seule fois :
      email text not null,
      domaine text not null
    );
+
+   -- Sécurité : la clé publique ne peut qu'AJOUTER une ligne, jamais lire.
+   alter table public.adm_site_leads enable row level security;
+
+   create policy "Écriture publique (formulaire du site)"
+     on public.adm_site_leads
+     for insert
+     to anon
+     with check (true);
    ```
    (Une table dédiée au site vitrine, séparée des tables de l'app — aucun
    risque pour les données existantes.)
-3. Onglet **Project Settings > API** : notez l'**URL du projet** et la clé
-   **`service_role`** (⚠️ pas la clé `anon` publique — la `service_role`
-   uniquement, elle ne doit jamais apparaître ailleurs que dans les
-   variables d'environnement Vercel).
+3. Onglet **Project Settings > API Keys** : notez l'**URL du projet**
+   (déjà en votre possession :
+   `https://swucggoffwltwyvwdbdj.supabase.co`), la clé **`publishable`**
+   (déjà en votre possession aussi) et la clé **`secret`** (celle-ci,
+   il faut la révéler/copier depuis cette page — c'est la seule qui
+   manque).
 
-### 2. Configurer l'email — sur emailjs.com
-1. Créez un compte gratuit sur **[emailjs.com](https://www.emailjs.com)**
-   (200 emails/mois gratuits).
-2. **Email Services > Add New Service > Gmail** → **Connect Account** →
-   connectez **un Gmail auquel vous avez accès** (pas forcément
-   `adm.appcontacts@gmail.com`) → notez le **Service ID** affiché.
-3. **Email Templates > Create New Template**. Réglages du template :
-   - **To Email** : `adm.appcontacts@gmail.com` (en dur — c'est ici que ça
-     compte, pas dans le compte connecté à l'étape 2)
-   - **Subject** : `Nouvelle inscription ADM — {{lead_name}}`
-   - **Content**, par exemple :
-     ```
-     Nouvelle inscription à la liste d'attente ADM :
-
-     Nom / Entreprise : {{lead_name}}
-     Téléphone : {{lead_phone}}
-     Email : {{lead_email}}
-     Domaine : {{lead_domaine}}
-     ```
-   - Enregistrez, notez le **Template ID**.
-4. **Account > General** : notez votre **Public Key**.
-5. **Account > Security** : créez et notez une **Private Key** (nécessaire
-   pour un envoi depuis un serveur, comme notre fonction, plutôt que
-   depuis un navigateur).
+### 2. Créer une clé Resend (aucune connexion Gmail nécessaire)
+1. Créez un compte gratuit sur **[resend.com](https://resend.com)** avec
+   n'importe quelle adresse email que vous possédez (100 emails/jour
+   gratuits, largement suffisant).
+2. **API Keys > Create API Key** → copiez la clé générée (elle ne sera
+   affichée qu'une fois).
+3. Rien d'autre à faire pour commencer à tester : Resend fournit un domaine
+   d'expéditeur de test (`onboarding@resend.dev`) déjà utilisé dans le
+   code. Si vous voulez envoyer depuis une adresse `@adm-app.fr` (ou autre
+   domaine à vous) plus tard, il faudra vérifier ce domaine dans Resend —
+   pas nécessaire pour que ça fonctionne dès maintenant.
 
 ### 3. Ajouter les variables d'environnement sur Vercel
 Dans **Vercel > votre projet > Settings > Environment Variables**,
@@ -146,12 +150,10 @@ ajoutez :
 
 | Nom | Valeur |
 |---|---|
-| `SUPABASE_URL` | l'URL du projet, étape 1.3 |
-| `SUPABASE_SERVICE_ROLE_KEY` | la clé `service_role`, étape 1.3 |
-| `EMAILJS_SERVICE_ID` | l'ID de l'étape 2.2 |
-| `EMAILJS_TEMPLATE_ID` | l'ID de l'étape 2.3 |
-| `EMAILJS_PUBLIC_KEY` | la clé de l'étape 2.4 |
-| `EMAILJS_PRIVATE_KEY` | la clé de l'étape 2.5 |
+| `SUPABASE_URL` | `https://swucggoffwltwyvwdbdj.supabase.co` |
+| `SUPABASE_ANON_KEY` | la clé `publishable` (étape 1.3) |
+| `SUPABASE_SECRET_KEY` | la clé `secret` (étape 1.3) |
+| `RESEND_API_KEY` | la clé de l'étape 2.2 |
 | `ADMIN_PASSWORD` | un mot de passe fort de votre choix, pour `/admin-x7f2k9.html` |
 
 Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les
@@ -181,7 +183,7 @@ email — même principe que ci-dessus.
       existe déjà et est à jour avec les 2 formulaires actuels — il suffit
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
-- [ ] Créer la table Supabase + configurer EmailJS + variables d'environnement
+- [ ] Créer la table Supabase (+ policy RLS) + configurer Resend + variables d'environnement
       (voir ci-dessus) — sans ça, les inscriptions ne sont enregistrées
       nulle part et aucun email n'est envoyé.
 - [ ] Choisir un `ADMIN_PASSWORD` fort et le garder secret.
