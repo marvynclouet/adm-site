@@ -52,7 +52,7 @@
 
   /* ---------- Validation & envoi des formulaires ----------
    * Le formulaire d'inscription (#signupForm) envoie vers /api/signup
-   * (Supabase + Resend, voir README.md). Le formulaire "idée" (#ideaForm)
+   * (Supabase + EmailJS, voir README.md). Le formulaire "idée" (#ideaForm)
    * n'a pas de backend pour l'instant — voir README.md si besoin.
    */
   function isValidEmail(value) {

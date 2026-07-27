@@ -1,44 +1,42 @@
 // Fonction serverless Vercel — reçoit une inscription du formulaire,
 // l'enregistre dans Supabase (le même projet que l'app mobile), et envoie
-// une notification email via Resend.
+// une notification email via EmailJS.
 // Variables d'environnement requises (voir README.md) :
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (depuis le projet Supabase existant)
-//   RESEND_API_KEY
+//   EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY / EMAILJS_PRIVATE_KEY
 
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const NOTIFY_EMAIL = 'adm.appcontacts@gmail.com';
-const FROM_EMAIL = 'ADM Site <onboarding@resend.dev>';
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 async function sendNotificationEmail(lead) {
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + process.env.RESEND_API_KEY,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [NOTIFY_EMAIL],
-      subject: 'Nouvelle inscription ADM — ' + lead.name,
-      text:
-        'Nouvelle inscription à la liste d\'attente ADM :\n\n' +
-        'Nom / Entreprise : ' + lead.name + '\n' +
-        'Téléphone : ' + lead.phone + '\n' +
-        'Email : ' + lead.email + '\n' +
-        'Domaine : ' + lead.domaine + '\n'
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_PUBLIC_KEY,
+      accessToken: process.env.EMAILJS_PRIVATE_KEY,
+      template_params: {
+        to_email: NOTIFY_EMAIL,
+        lead_name: lead.name,
+        lead_phone: lead.phone,
+        lead_email: lead.email,
+        lead_domaine: lead.domaine
+      }
     })
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error('Resend: ' + response.status + ' ' + text);
+    throw new Error('EmailJS: ' + response.status + ' ' + text);
   }
 }
 
@@ -83,7 +81,7 @@ module.exports = async (req, res) => {
   } catch (err) {
     // L'inscription est déjà enregistrée dans Supabase : on ne fait pas
     // échouer la requête si seul l'envoi d'email a un problème (ex:
-    // identifiants Resend pas encore configurés). On le signale en log.
+    // identifiants EmailJS pas encore configurés). On le signale en log.
     console.error('Erreur envoi email:', err);
   }
 
