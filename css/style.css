@@ -178,7 +178,8 @@ p { margin: 0 0 1em; color: var(--text-secondary); line-height: 1.65; }
 .hero h1,
 .hero-lead,
 .signup-inline,
-.hero-microtrust {
+.hero-microtrust,
+.hero-app-link {
   animation: fadeInUp .7s cubic-bezier(.16,.8,.3,1) both;
 }
 .hero-copy .eyebrow { animation-delay: 0s; }
@@ -186,6 +187,7 @@ p { margin: 0 0 1em; color: var(--text-secondary); line-height: 1.65; }
 .hero-lead { animation-delay: .16s; }
 .signup-inline { animation-delay: .24s; }
 .hero-microtrust { animation-delay: .32s; }
+.hero-app-link { animation-delay: .38s; }
 /* .phone-stage a sa propre entrée + boucle de flottement, voir plus bas */
 
 .eyebrow {
@@ -199,6 +201,15 @@ p { margin: 0 0 1em; color: var(--text-secondary); line-height: 1.65; }
 .hero h1 em { font-style: italic; color: var(--coral); }
 .hero-lead { font-size: 15.5px; line-height: 1.55; max-width: 52ch; margin-bottom: 18px; }
 .hero-microtrust { font-size: 12.5px; color: var(--text-tertiary); font-weight: 600; margin: 10px 0 0; }
+
+.hero-app-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13.5px; color: var(--text-secondary); margin-top: 14px;
+  padding-bottom: 1px; border-bottom: 1px solid transparent;
+  transition: border-color .15s ease, color .15s ease;
+}
+.hero-app-link strong { color: var(--coral); font-weight: 700; }
+.hero-app-link:hover { color: var(--navy); border-bottom-color: var(--coral); }
 
 /* Formulaire d'inscription — inline, sous le texte du hero */
 .signup-inline {
@@ -383,6 +394,7 @@ p { margin: 0 0 1em; color: var(--text-secondary); line-height: 1.65; }
   gap: 20px; padding-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,.08);
 }
 .footer-links { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.footer-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .footer-links a, .footer-mail { font-size: 14.5px; color: rgba(255,255,255,.65); }
 .footer-links a:hover, .footer-mail:hover { color: var(--coral-light); }
 .footer-disabled { font-size: 14.5px; color: rgba(255,255,255,.35); cursor: default; }
