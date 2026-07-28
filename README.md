@@ -45,15 +45,14 @@ boutons d'action.
 ```
 adm-site-vitrine/
 ├── index.html            Page unique, sections ancrées
-├── admin-x7f2k9.html      Page secrète : tableau des inscriptions (comptes admin email + mot de passe)
+├── admin-x7f2k9.html      Page secrète : tableau des inscriptions (login email + mot de passe)
 ├── mentions-legales.html Page légale (à compléter avant mise en ligne)
 ├── confidentialite.html  Politique de confidentialité (prête, pas encore liée en footer)
 ├── css/style.css         Tous les styles (variables CSS = design system ADM)
 ├── js/main.js            Validation + envoi des formulaires, animations
 ├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
 ├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par compte admin)
-├── api/admin-auth.js     Fonction serverless : création d'un compte admin (email + mot de passe)
-├── lib/adminAuth.js       Logique partagée (hash/vérification bcrypt) entre les deux ci-dessus
+├── lib/adminAuth.js       Vérification bcrypt du compte admin, utilisée par api/leads.js
 ├── package.json          Dépendances des fonctions serverless (@supabase/supabase-js, bcryptjs)
 ├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
 ├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
@@ -84,10 +83,12 @@ Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
    **Resend** — aucune connexion à un compte Gmail nécessaire (ni le
    vôtre, ni celui des clients) : juste une clé API.
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
-   **`/admin-x7f2k9.html`**. Chaque administrateur crée son propre compte
-   (email + mot de passe) directement sur cette page — les mots de passe
-   sont hashés (bcrypt) avant d'être stockés dans une table Supabase
-   `admin_users`, jamais en clair. Pas de mot de passe unique partagé.
+   **`/admin-x7f2k9.html`**, avec un login email + mot de passe. Le mot de
+   passe est hashé (bcrypt) et stocké dans une table Supabase
+   `admin_users` — jamais en clair. ⚠️ Volontairement **pas d'auto-
+   inscription** : le seul moyen de créer un compte admin est d'insérer
+   directement une ligne en base (voir plus bas), pour que n'importe qui
+   tombant sur cette URL ne puisse pas se créer un accès tout seul.
 
 Supabase utilise maintenant **deux clés différentes**, avec deux niveaux
 de confiance différents :
@@ -131,8 +132,23 @@ alter table public.admin_users enable row level security;
 -- Aucune policy : accessible uniquement via la clé secrète, jamais côté client.
 ```
 
+Un premier compte admin a aussi été créé : **`adm.appcontacts@gmail.com`**
+avec le mot de passe choisi. C'est le seul moyen d'accéder à
+`/admin-x7f2k9.html` — changez ce mot de passe ou ajoutez d'autres comptes
+en répétant la manipulation ci-dessous (il n'y a pas d'inscription
+possible depuis le site, par sécurité) :
+
+```bash
+# 1. Générer un hash bcrypt du mot de passe choisi
+node -e "require('bcryptjs').hash('VotreNouveauMotDePasse', 10).then(console.log)"
+
+# 2. Insérer le compte dans Supabase (SQL Editor du dashboard, ou psql)
+insert into public.admin_users (email, password_hash)
+values ('nouvel-admin@exemple.com', 'LE_HASH_GÉNÉRÉ_CI-DESSUS');
+```
+
 (Gardé ici pour référence — utile si vous reproduisez ce site sur un autre
-projet Supabase, mais rien à refaire sur celui-ci.)
+projet Supabase, mais rien à refaire sur celui-ci pour l'instant.)
 
 Il reste deux choses à configurer une seule fois :
 
@@ -170,19 +186,18 @@ Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les
 nouvelles variables soient prises en compte.
 
 ### Tester
-1. Sur `/admin-x7f2k9.html`, onglet **"Créer un compte"** : créez votre
-   premier compte admin (email + mot de passe, 8 caractères minimum).
-2. Reconnectez-vous avec ce compte (onglet "Se connecter") → le tableau
-   des inscriptions doit s'afficher (vide au départ).
-3. Remplissez le formulaire d'inscription sur le site → un email doit
+1. Sur `/admin-x7f2k9.html`, connectez-vous avec le compte déjà créé
+   (`adm.appcontacts@gmail.com` + le mot de passe choisi) → le tableau des
+   inscriptions doit s'afficher (vide au départ).
+2. Remplissez le formulaire d'inscription sur le site → un email doit
    arriver à `adm.appcontacts@gmail.com`, et l'inscription doit apparaître
    dans le tableau admin après un clic sur "Actualiser".
 
 ⚠️ **`/admin-x7f2k9.html` reste "secrète par obscurité"** : ne la liez
-nulle part sur le site public, ne la partagez pas. N'importe qui trouvant
-cette URL peut créer un compte et voir les inscriptions — si l'adresse
-fuite un jour, changez le nom du fichier (et supprimez les comptes
-suspects dans la table `admin_users`).
+nulle part sur le site public, ne la partagez pas. Sans auto-inscription,
+la seule façon d'y entrer est de connaître à la fois l'URL et le mot de
+passe du compte admin — si l'un des deux fuite, changez-le (mot de passe :
+répétez la manipulation SQL ci-dessus ; URL : renommez le fichier).
 
 ### Le formulaire "Vos idées nous intéressent" (`#ideaForm`)
 Non branché à ce jour (le message reste local, rien n'est enregistré).
@@ -198,10 +213,10 @@ email — même principe que ci-dessus.
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
 - [x] Tables Supabase + policies RLS créées (`adm_site_leads`, `admin_users`).
+- [x] Premier compte admin créé (`adm.appcontacts@gmail.com`).
 - [ ] Configurer Resend + variables d'environnement (voir ci-dessus) —
       sans ça, les inscriptions ne sont enregistrées nulle part et aucun
       email n'est envoyé.
-- [ ] Créer votre premier compte admin depuis `/admin-x7f2k9.html`.
 - [ ] Vérifier l'adresse `adm.appcontacts@gmail.com` utilisée dans le footer
       et les pages légales.
 

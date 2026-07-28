@@ -23,10 +23,6 @@
     padding: 12px 14px; font-size: 15px; font-family: inherit; margin-bottom: 14px;
   }
   .admin-error { color: var(--error); font-size: 13.5px; font-weight: 600; min-height: 18px; margin: 0 0 10px; }
-  .admin-success { color: var(--success); font-size: 13.5px; font-weight: 600; min-height: 18px; margin: 0 0 10px; }
-  .admin-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--cream); border-radius: var(--radius-full); padding: 4px; }
-  .admin-tab { flex: 1; border: none; background: none; padding: 8px 0; border-radius: var(--radius-full); font-size: 13.5px; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
-  .admin-tab.is-active { background: var(--navy); color: #fff; }
   .admin-label { font-size: 12.5px; font-weight: 700; color: var(--navy); display: block; margin-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
   th, td { text-align: left; padding: 12px 14px; font-size: 14px; border-bottom: 1px solid var(--border-light); }
@@ -49,11 +45,6 @@
 
 <div id="gate" class="admin-gate">
   <h1>ADM — Inscriptions</h1>
-  <div class="admin-tabs">
-    <button type="button" class="admin-tab is-active" data-tab="login">Se connecter</button>
-    <button type="button" class="admin-tab" data-tab="register">Créer un compte</button>
-  </div>
-
   <p>Accès réservé aux administrateurs ADM.</p>
 
   <label class="admin-label" for="gateEmail">Email</label>
@@ -63,7 +54,6 @@
   <input type="password" id="gatePwd" placeholder="Mot de passe" autocomplete="current-password">
 
   <p class="admin-error" id="gateError"></p>
-  <p class="admin-success" id="gateSuccess"></p>
   <button type="button" class="btn btn-primary btn-block" id="gateSubmit">Voir les inscriptions</button>
 </div>
 
@@ -87,24 +77,10 @@
   var emailInput = document.getElementById('gateEmail');
   var pwdInput = document.getElementById('gatePwd');
   var gateError = document.getElementById('gateError');
-  var gateSuccess = document.getElementById('gateSuccess');
   var gateSubmit = document.getElementById('gateSubmit');
-  var tabs = document.querySelectorAll('.admin-tab');
   var tableWrap = document.getElementById('tableWrap');
   var countEl = document.getElementById('count');
   var refreshBtn = document.getElementById('refreshBtn');
-
-  var mode = 'login';
-
-  tabs.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      mode = tab.getAttribute('data-tab');
-      tabs.forEach(function (t) { t.classList.toggle('is-active', t === tab); });
-      gateSubmit.textContent = mode === 'login' ? 'Voir les inscriptions' : 'Créer le compte';
-      gateError.textContent = '';
-      gateSuccess.textContent = '';
-    });
-  });
 
   function getStoredCredentials() {
     var raw = sessionStorage.getItem('adm_admin_creds');
@@ -126,21 +102,6 @@
           throw new Error(result.data && result.data.message ? result.data.message : 'Erreur');
         }
         return result.data.leads || [];
-      });
-  }
-
-  function registerAdmin(email, password) {
-    return fetch('/api/admin-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, password: password })
-    })
-      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-      .then(function (result) {
-        if (!result.ok) {
-          throw new Error(result.data && result.data.message ? result.data.message : 'Erreur');
-        }
-        return true;
       });
   }
 
@@ -195,23 +156,9 @@
     var email = emailInput.value.trim();
     var password = pwdInput.value;
     gateError.textContent = '';
-    gateSuccess.textContent = '';
 
     if (!email || !password) {
       gateError.textContent = 'Merci de renseigner l\'email et le mot de passe.';
-      return;
-    }
-
-    if (mode === 'register') {
-      registerAdmin(email, password)
-        .then(function () {
-          gateSuccess.textContent = 'Compte créé ! Connectez-vous maintenant.';
-          tabs[0].click();
-          emailInput.value = email;
-        })
-        .catch(function (err) {
-          gateError.textContent = err.message || 'Erreur lors de la création du compte.';
-        });
       return;
     }
 

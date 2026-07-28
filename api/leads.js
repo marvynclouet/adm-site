@@ -1,8 +1,8 @@
 // Fonction serverless Vercel — renvoie la liste des inscriptions,
 // protégée par un compte admin (email + mot de passe, vérifié contre le
-// hash stocké dans Supabase — voir lib/adminAuth.js et api/admin-auth.js
-// pour la création de compte). Appelée uniquement par la page admin
-// secrète (voir README.md).
+// hash stocké dans Supabase — voir lib/adminAuth.js ; le compte est créé
+// directement en base, pas d'inscription publique, voir README.md).
+// Appelée uniquement par la page admin secrète.
 //
 // La lecture des inscriptions utilise la clé SECRÈTE Supabase (pas la clé
 // publique) : elle contourne les policies RLS, et ne doit vivre que dans
