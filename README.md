@@ -45,14 +45,16 @@ boutons d'action.
 ```
 adm-site-vitrine/
 ├── index.html            Page unique, sections ancrées
-├── admin-x7f2k9.html      Page secrète : tableau des inscriptions (protégée par mot de passe)
+├── admin-x7f2k9.html      Page secrète : tableau des inscriptions (comptes admin email + mot de passe)
 ├── mentions-legales.html Page légale (à compléter avant mise en ligne)
 ├── confidentialite.html  Politique de confidentialité (prête, pas encore liée en footer)
 ├── css/style.css         Tous les styles (variables CSS = design system ADM)
 ├── js/main.js            Validation + envoi des formulaires, animations
 ├── api/signup.js         Fonction serverless : enregistre l'inscription + envoie l'email
-├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par mot de passe)
-├── package.json          Dépendances des fonctions serverless (@supabase/supabase-js)
+├── api/leads.js          Fonction serverless : renvoie les inscriptions (protégée par compte admin)
+├── api/admin-auth.js     Fonction serverless : création d'un compte admin (email + mot de passe)
+├── lib/adminAuth.js       Logique partagée (hash/vérification bcrypt) entre les deux ci-dessus
+├── package.json          Dépendances des fonctions serverless (@supabase/supabase-js, bcryptjs)
 ├── .env.example          Variables d'environnement nécessaires (à copier/configurer)
 ├── assets/img/           Logo, favicon, icônes, capture d'écran de l'app
 └── README.md
@@ -82,9 +84,10 @@ Quand un prestataire remplit le formulaire d'inscription (`#signupForm`) :
    **Resend** — aucune connexion à un compte Gmail nécessaire (ni le
    vôtre, ni celui des clients) : juste une clé API.
 3. Vous consultez toutes les inscriptions sur une page secrète du site :
-   **`/admin-x7f2k9.html`**, protégée par un mot de passe (vérifié côté
-   serveur par `api/leads.js`, jamais stocké dans le code — juste dans une
-   variable d'environnement Vercel, chiffrée au repos par Vercel).
+   **`/admin-x7f2k9.html`**. Chaque administrateur crée son propre compte
+   (email + mot de passe) directement sur cette page — les mots de passe
+   sont hashés (bcrypt) avant d'être stockés dans une table Supabase
+   `admin_users`, jamais en clair. Pas de mot de passe unique partagé.
 
 Supabase utilise maintenant **deux clés différentes**, avec deux niveaux
 de confiance différents :
@@ -98,39 +101,47 @@ de confiance différents :
   `api/leads.js` (jamais côté navigateur) pour afficher les inscriptions
   sur la page admin.
 
-Trois choses à configurer une seule fois :
+### ✅ Déjà fait pour vous
+Les tables Supabase et leurs règles de sécurité ont déjà été créées
+directement en base (via `psql`) :
 
-### 1. Créer la table + les règles de sécurité dans Supabase
-1. Ouvrez **[supabase.com/dashboard](https://supabase.com/dashboard)** →
-   le projet utilisé par ADM-APP.
-2. Onglet **SQL Editor** → **New query** → collez et exécutez :
-   ```sql
-   create table if not exists public.adm_site_leads (
-     id bigint generated always as identity primary key,
-     created_at timestamptz not null default now(),
-     name text not null,
-     phone text not null,
-     email text not null,
-     domaine text not null
-   );
+```sql
+-- Inscriptions du formulaire du site
+create table if not exists public.adm_site_leads (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  name text not null,
+  phone text not null,
+  email text not null,
+  domaine text not null
+);
+alter table public.adm_site_leads enable row level security;
+create policy "Écriture publique (formulaire du site)"
+  on public.adm_site_leads for insert to anon with check (true);
+-- (pas de policy de lecture : seule la clé secrète peut lire, via api/leads.js)
 
-   -- Sécurité : la clé publique ne peut qu'AJOUTER une ligne, jamais lire.
-   alter table public.adm_site_leads enable row level security;
+-- Comptes administrateurs de la page /admin-x7f2k9.html
+create table if not exists public.admin_users (
+  id bigint generated always as identity primary key,
+  email text not null unique,
+  password_hash text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.admin_users enable row level security;
+-- Aucune policy : accessible uniquement via la clé secrète, jamais côté client.
+```
 
-   create policy "Écriture publique (formulaire du site)"
-     on public.adm_site_leads
-     for insert
-     to anon
-     with check (true);
-   ```
-   (Une table dédiée au site vitrine, séparée des tables de l'app — aucun
-   risque pour les données existantes.)
-3. Onglet **Project Settings > API Keys** : notez l'**URL du projet**
-   (déjà en votre possession :
-   `https://swucggoffwltwyvwdbdj.supabase.co`), la clé **`publishable`**
-   (déjà en votre possession aussi) et la clé **`secret`** (celle-ci,
-   il faut la révéler/copier depuis cette page — c'est la seule qui
-   manque).
+(Gardé ici pour référence — utile si vous reproduisez ce site sur un autre
+projet Supabase, mais rien à refaire sur celui-ci.)
+
+Il reste deux choses à configurer une seule fois :
+
+### 1. Récupérer les clés Supabase
+Onglet **Project Settings > API Keys** du projet Supabase (le même que
+l'app mobile) :
+- **URL du projet** : `https://swucggoffwltwyvwdbdj.supabase.co`
+- Clé **`publishable`** (déjà en votre possession)
+- Clé **`secret`** — celle-ci, il faut la révéler/copier depuis cette page.
 
 ### 2. Créer une clé Resend (aucune connexion Gmail nécessaire)
 1. Créez un compte gratuit sur **[resend.com](https://resend.com)** avec
@@ -151,24 +162,27 @@ ajoutez :
 | Nom | Valeur |
 |---|---|
 | `SUPABASE_URL` | `https://swucggoffwltwyvwdbdj.supabase.co` |
-| `SUPABASE_ANON_KEY` | la clé `publishable` (étape 1.3) |
-| `SUPABASE_SECRET_KEY` | la clé `secret` (étape 1.3) |
-| `RESEND_API_KEY` | la clé de l'étape 2.2 |
-| `ADMIN_PASSWORD` | un mot de passe fort de votre choix, pour `/admin-x7f2k9.html` |
+| `SUPABASE_ANON_KEY` | la clé `publishable` (étape 1) |
+| `SUPABASE_SECRET_KEY` | la clé `secret` (étape 1) |
+| `RESEND_API_KEY` | la clé de l'étape 2 |
 
 Puis **redéployez** (Vercel > Deployments > ⋯ > Redeploy) pour que les
 nouvelles variables soient prises en compte.
 
 ### Tester
-Remplissez le formulaire sur le site → un email doit arriver à
-`adm.appcontacts@gmail.com`, et l'inscription doit apparaître sur
-`https://votre-domaine.vercel.app/admin-x7f2k9.html` (mot de passe =
-`ADMIN_PASSWORD`).
+1. Sur `/admin-x7f2k9.html`, onglet **"Créer un compte"** : créez votre
+   premier compte admin (email + mot de passe, 8 caractères minimum).
+2. Reconnectez-vous avec ce compte (onglet "Se connecter") → le tableau
+   des inscriptions doit s'afficher (vide au départ).
+3. Remplissez le formulaire d'inscription sur le site → un email doit
+   arriver à `adm.appcontacts@gmail.com`, et l'inscription doit apparaître
+   dans le tableau admin après un clic sur "Actualiser".
 
-⚠️ **`/admin-x7f2k9.html` est protégée par mot de passe, mais son adresse
-reste "secrète par obscurité"** : ne la liez nulle part sur le site public,
-ne la partagez pas, et changez le nom du fichier si vous pensez que l'URL a
-fuité (le mot de passe reste la vraie protection).
+⚠️ **`/admin-x7f2k9.html` reste "secrète par obscurité"** : ne la liez
+nulle part sur le site public, ne la partagez pas. N'importe qui trouvant
+cette URL peut créer un compte et voir les inscriptions — si l'adresse
+fuite un jour, changez le nom du fichier (et supprimez les comptes
+suspects dans la table `admin_users`).
 
 ### Le formulaire "Vos idées nous intéressent" (`#ideaForm`)
 Non branché à ce jour (le message reste local, rien n'est enregistré).
@@ -183,10 +197,11 @@ email — même principe que ci-dessus.
       existe déjà et est à jour avec les 2 formulaires actuels — il suffit
       de remplacer le `<span class="footer-disabled">` par un `<a>` dans
       `index.html` une fois prêt).
-- [ ] Créer la table Supabase (+ policy RLS) + configurer Resend + variables d'environnement
-      (voir ci-dessus) — sans ça, les inscriptions ne sont enregistrées
-      nulle part et aucun email n'est envoyé.
-- [ ] Choisir un `ADMIN_PASSWORD` fort et le garder secret.
+- [x] Tables Supabase + policies RLS créées (`adm_site_leads`, `admin_users`).
+- [ ] Configurer Resend + variables d'environnement (voir ci-dessus) —
+      sans ça, les inscriptions ne sont enregistrées nulle part et aucun
+      email n'est envoyé.
+- [ ] Créer votre premier compte admin depuis `/admin-x7f2k9.html`.
 - [ ] Vérifier l'adresse `adm.appcontacts@gmail.com` utilisée dans le footer
       et les pages légales.
 

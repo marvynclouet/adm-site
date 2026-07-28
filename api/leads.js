@@ -1,20 +1,30 @@
 // Fonction serverless Vercel — renvoie la liste des inscriptions,
-// protégée par le mot de passe ADMIN_PASSWORD (variable d'environnement).
-// Appelée uniquement par la page admin secrète (voir README.md).
+// protégée par un compte admin (email + mot de passe, vérifié contre le
+// hash stocké dans Supabase — voir lib/adminAuth.js et api/admin-auth.js
+// pour la création de compte). Appelée uniquement par la page admin
+// secrète (voir README.md).
 //
-// Utilise la clé SECRÈTE Supabase (pas la clé publique/publishable) : elle
-// contourne les policies RLS pour pouvoir tout lire, et ne doit vivre que
-// dans cette fonction serverless — jamais côté navigateur.
+// La lecture des inscriptions utilise la clé SECRÈTE Supabase (pas la clé
+// publique) : elle contourne les policies RLS, et ne doit vivre que dans
+// cette fonction serverless — jamais côté navigateur.
 
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
+const { supabase, verifyAdmin } = require('../lib/adminAuth');
 
 module.exports = async (req, res) => {
-  const password = req.query.password || req.headers['x-admin-password'];
+  const email = String(req.headers['x-admin-email'] || req.query.email || '').trim().toLowerCase();
+  const password = String(req.headers['x-admin-password'] || req.query.password || '');
 
-  if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
-    res.status(401).json({ status: 'error', message: 'Mot de passe incorrect' });
+  let authorized = false;
+  try {
+    authorized = await verifyAdmin(email, password);
+  } catch (err) {
+    console.error('Erreur vérification admin:', err);
+    res.status(500).json({ status: 'error', message: 'Erreur lors de la vérification.' });
+    return;
+  }
+
+  if (!authorized) {
+    res.status(401).json({ status: 'error', message: 'Email ou mot de passe incorrect.' });
     return;
   }
 

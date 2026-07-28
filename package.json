@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Site vitrine ADM — fonctions serverless Vercel pour le formulaire d'inscription (Supabase + email Resend).",
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4"
+    "@supabase/supabase-js": "^2.45.4",
+    "bcryptjs": "^2.4.3"
   }
 }
